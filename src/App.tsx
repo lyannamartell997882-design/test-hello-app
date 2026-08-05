@@ -7,6 +7,7 @@ import React, { useState, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { PreviewCanvas } from './components/PreviewCanvas';
+import { SessionSummaryCard } from './components/SessionSummaryCard';
 import { LogTerminal } from './components/LogTerminal';
 import { Footer } from './components/Footer';
 import { Environment, LogMessage, TestItem } from './types';
@@ -34,6 +35,17 @@ export default function App() {
   const [outputMessage, setOutputMessage] = useState<string>('Hello World');
   const [exitCode, setExitCode] = useState<number>(0);
 
+  // Session summary stats state
+  const [totalTestsRun, setTotalTestsRun] = useState<number>(4);
+  const [passedCount, setPassedCount] = useState<number>(4);
+  const [failedCount, setFailedCount] = useState<number>(0);
+  const [executionTimes, setExecutionTimes] = useState<number[]>([12, 8, 7, 9]);
+
+  const avgExecutionTimeMs =
+    executionTimes.length > 0
+      ? executionTimes.reduce((a, b) => a + b, 0) / executionTimes.length
+      : 0;
+
   const formatTime = () => {
     const now = new Date();
     return now.toTimeString().split(' ')[0];
@@ -59,18 +71,26 @@ export default function App() {
 
     setTimeout(() => {
       const time2 = formatTime();
+      const runTime = Math.floor(Math.random() * 5) + 6; // random duration 6-10ms
+
       setLogs((prev) => [
         ...prev,
         { id: Date.now().toString() + '-3', timestamp: time2, level: 'STDOUT', text: 'Hello World' },
-        { id: Date.now().toString() + '-4', timestamp: time2, level: 'SUCCESS', text: 'Test suite assertion matched: stdout == "Hello World"' },
+        { id: Date.now().toString() + '-4', timestamp: time2, level: 'SUCCESS', text: `Test suite assertion matched: stdout == "Hello World" (${runTime}ms)` },
         { id: Date.now().toString() + '-5', timestamp: time2, level: 'INFO', text: 'Process finished with exit code 0' },
       ]);
 
       setOutputMessage('Hello World');
       setExitCode(0);
       setRecentTests((prev) =>
-        prev.map((t) => (t.id === 't2' ? { ...t, status: 'PASSED' } : t))
+        prev.map((t) => (t.id === 't2' ? { ...t, status: 'PASSED', time: `${runTime}ms` } : t))
       );
+
+      // Update session statistics
+      setTotalTestsRun((prev) => prev + 1);
+      setPassedCount((prev) => prev + 1);
+      setExecutionTimes((prev) => [...prev, runTime]);
+
       setIsRunning(false);
     }, 800);
   }, [isRunning, activeEnv]);
@@ -102,6 +122,13 @@ export default function App() {
         <Sidebar activeEnv={activeEnv} onSelectEnv={handleSelectEnv} recentTests={recentTests} />
 
         <main className="flex-1 flex flex-col p-6 bg-white overflow-hidden">
+          <SessionSummaryCard
+            totalTestsRun={totalTestsRun}
+            passedCount={passedCount}
+            failedCount={failedCount}
+            avgExecutionTimeMs={avgExecutionTimeMs}
+          />
+
           <PreviewCanvas
             isRunning={isRunning}
             onTriggerExecution={handleRunSuite}
